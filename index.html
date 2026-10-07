@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ТЗ для замірника ESCORE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: робоче місце менеджера — ліворуч вхідні дані (липка колонка), праворуч живий чек-ліст як документ. Палітра наслідує smeta: зелений ESCORE + жовте поле вводу. */
+:root{
+  --bg:#f7f6f2; --surface:#ffffff; --sunk:#f0efe9; --line:#e2e0d8; --ink:#25261f; --muted:#6f6d64;
+  --accent:#1d7a56; --accent-ink:#ffffff; --accent-soft:#e2efe8; --input:#FFF2CC; --input-line:#e6d9a8;
+  --ai:#e4f1ea; --ai-line:#9fcbb3; --warn:#8a5a00; --warn-bg:#fff4dc; --err:#b3261e;
+  --font:"Golos Text",-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#171a17; --surface:#20241f; --sunk:#1b1e1a; --line:#343a33; --ink:#e8e9e2; --muted:#a3a69b;
+  --accent:#5cc394; --accent-ink:#0f1a14; --accent-soft:#233a2e; --input:#3a3420; --input-line:#5b5130;
+  --ai:#1f3a2c; --ai-line:#3f7a5b; --warn:#f0c46b; --warn-bg:#3a2f17; --err:#ff8a80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#171a17; --surface:#20241f; --sunk:#1b1e1a; --line:#343a33; --ink:#e8e9e2; --muted:#a3a69b;
+  --accent:#5cc394; --accent-ink:#0f1a14; --accent-soft:#233a2e; --input:#3a3420; --input-line:#5b5130;
+  --ai:#1f3a2c; --ai-line:#3f7a5b; --warn:#f0c46b; --warn-bg:#3a2f17; --err:#ff8a80; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45}
+header.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top h1{font-size:17px;margin:0;font-weight:600;text-wrap:balance}
+.badge{font-size:11px;letter-spacing:.06em;text-transform:uppercase;background:var(--warn-bg);color:var(--warn);padding:3px 8px;border-radius:999px;font-weight:600}
+.sub{color:var(--muted);font-size:12.5px}
+.layout{display:grid;grid-template-columns:minmax(300px,400px) minmax(0,1fr);gap:20px;max-width:1360px;margin:0 auto;padding-inline:20px;padding-block:18px 60px}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr);padding-inline:16px}}
+aside.inp{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);align-self:start;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 24px);overflow:auto;padding-right:2px}
+@media (max-width:900px){aside.inp{position:static;max-height:none}}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.box h2{font-size:13px;margin:0;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+input[type=text],textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%}
+textarea{resize:vertical;min-height:70px}
+.inp textarea.big{min-height:130px;font-size:13px}
+input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-weight:600;background:var(--accent);color:var(--accent-ink);border:none;border-radius:8px;height:38px;padding:0 16px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn.sm{height:30px;padding:0 11px;font-size:12.5px}
+.btn:disabled{opacity:.5;cursor:default}
+.switch{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px}
+.switch input{width:16px;height:16px;accent-color:var(--accent)}
+.status{font-size:12.5px;color:var(--muted);min-height:18px}
+.status.err{color:var(--err)}
+.note{font-size:12px;color:var(--muted)}
+.filebtn{font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline}
+.filebtn input{display:none}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.steps a{color:var(--accent)}
+
+main.res{min-width:0;display:flex;flex-direction:column;gap:14px}
+.banner{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 14px;font-size:13px}
+.banner ul{margin:6px 0 0;padding-left:18px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--line)}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px clamp(14px,3vw,30px)}
+.sheet h3{font-size:15px;margin:22px 0 10px;font-weight:600}
+.sheet h3:first-child{margin-top:0}
+.doctitle{text-align:center;margin-bottom:16px}
+.doctitle b{display:block;font-size:16px;letter-spacing:.02em}
+.doctitle span{font-size:13px;color:var(--muted)}
+.tw{overflow-x:auto}
+table.ck{width:100%;border-collapse:collapse}
+table.ck td{border:1px solid var(--line);padding:8px 10px;vertical-align:top}
+table.ck td.l{width:32%;font-weight:600;font-size:13px;background:var(--sunk)}
+table.ck td.l i{display:block;font-weight:400;color:var(--muted);font-size:11.5px;margin-top:3px}
+@media (max-width:620px){table.ck td{display:block;width:100%!important;border-bottom:none}table.ck tr{display:block;border-bottom:1px solid var(--line)}table.ck td.l{border-bottom:none}}
+.cell{display:flex;flex-direction:column;gap:8px;min-width:0}
+.fi{display:flex;flex-direction:column;gap:3px}
+.fi>span{font-size:11.5px;color:var(--muted)}
+.cell input[type=text],.cell textarea{background:var(--input);border-color:var(--input-line)}
+.cell textarea{min-height:52px}
+.ai input[type=text],.ai textarea,input.ai,textarea.ai{background:var(--ai)!important;border-color:var(--ai-line)!important}
+.tri{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tri .t{flex:1 1 200px;font-size:13px}
+.chip{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 11px;cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.on.ai{box-shadow:0 0 0 2px var(--ai-line)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.onsite{font-size:12.5px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:6px 9px}
+.months{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+@media (max-width:620px){.months{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.months .fi>span{font-size:11px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.key{border:1px solid var(--ai-line);background:var(--accent-soft);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.key h4{margin:0;font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.key textarea{background:var(--surface)}
+.custom{display:flex;flex-direction:column;gap:8px}
+.custom .cr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto;gap:6px;align-items:start}
+.x{font:inherit;border:none;background:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:6px}
+.foot{font-size:11.5px;color:var(--muted);font-style:italic;margin-top:6px}
+.photos{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.photos div::before{content:"";display:inline-block;width:11px;height:11px;border:1.5px solid var(--muted);border-radius:2px;margin-right:8px;vertical-align:-1px}
+
+/* PDF — завжди «паперовий» світлий вигляд */
+#pdfhost{position:fixed;left:-10000px;top:0;width:780px}
+.paper{--p-ink:#1f1f1b;--p-muted:#5d5b53;--p-line:#9a988f;--p-head:#eceae3;background:#ffffff;color:var(--p-ink);font-family:var(--font);font-size:11.5px;line-height:1.4;padding:6px 4px}
+.paper .pt{text-align:center;margin-bottom:10px}.paper .pt b{display:block;font-size:14px}.paper .pt span{font-size:11.5px}
+.paper h5{font-size:12.5px;margin:12px 0 6px}
+.paper table{width:100%;border-collapse:collapse;margin-bottom:4px}
+.paper td{border:1px solid var(--p-line);padding:5px 7px;vertical-align:top}
+.paper td.l{width:31%;font-weight:600;background:var(--p-head)}
+.paper td.l i{display:block;font-weight:400;font-size:10px;color:var(--p-muted)}
+.paper .bx{display:inline-block;width:10px;height:10px;border:1.2px solid var(--p-ink);margin:0 3px 0 6px;vertical-align:-1px;position:relative}
+.paper .bx.on::after{content:"";position:absolute;left:2px;top:-1px;width:4px;height:7px;border:solid var(--p-ink);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.paper .blank{display:inline-block;min-width:70px;border-bottom:1px solid var(--p-line)}
+.paper .muted{color:var(--p-muted)}
+.paper .keyp{border:1.5px solid var(--p-ink);padding:7px 9px;margin:8px 0}
+.paper .keyp ul{margin:4px 0 0;padding-left:16px}
+.paper .scheme{height:230px;border:1px solid var(--p-line)}
+.paper tr,.paper .keyp{page-break-inside:avoid}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1>ТЗ для замірника · ESCORE <span class="badge" id="modeBadge">тест</span></h1>
+    <div class="sub">Транскрипція або опис менеджера → заповнений чек-ліст виїзного заміру СЕС</div>
+  </div>
+  <div class="row"><span class="sub" id="aiState"></span><button class="btn ghost sm" id="signin" hidden>Увійти через Google</button></div>
+</header>
+
+<div class="layout">
+  <aside class="inp">
+    <section class="box">
+      <h2>1. Шапка (вручну)</h2>
+      <label class="f">Дата/час виїзду<input type="text" id="h_visit" placeholder="напр. 09.10, 11:00"></label>
+      <label class="f">Підстава<input type="text" id="h_basis" placeholder="напр. дзвінок клієнта, заявка з сайту"></label>
+      <label class="f">Мета виїзду<input type="text" id="h_purpose" placeholder="напр. замір і збір даних для проєкту гібридної СЕС"></label>
+      <div class="note">Порожні поля AI спробує заповнити з тексту.</div>
+    </section>
+
+    <section class="box">
+      <h2>2. Матеріали</h2>
+      <label class="f">Транскрипція дзвінка
+        <textarea class="big" id="in_tr" placeholder="Вставте текст або WEBVTT — таймкоди приберемо самі"></textarea>
+      </label>
+      <label class="filebtn">Завантажити файл .vtt / .txt<input type="file" id="in_file" accept=".vtt,.txt,.srt,text/plain"></label>
+      <label class="f">Опис від менеджера
+        <textarea class="big" id="in_desc" placeholder="Нотатки менеджера про клієнта та запит"></textarea>
+      </label>
+      <label class="switch"><input type="checkbox" id="kpOn"> Є КП на руках</label>
+      <label class="f" id="kpBox" hidden>Дані КП (інвертор, АКБ, панелі, кількість…)
+        <textarea id="in_kp" placeholder="Вставте зміст КП або основні позиції"></textarea>
+      </label>
+    </section>
+
+    <section class="box">
+      <div class="row">
+        <button class="btn" id="go">Заповнити ТЗ</button>
+        <button class="btn ghost" id="stop" hidden>Зупинити</button>
+        <button class="btn ghost sm" id="loadEx">Вставити приклад</button>
+      </div>
+      <div class="status" id="st"></div>
+      <div class="note">Розбір займає 20–60 секунд. Результат можна правити вручну перед вивантаженням.</div>
+    </section>
+
+    <section class="box" id="manual" hidden>
+      <h2>Розбір через чат claude.ai</h2>
+      <div class="note">Тестовий режим: автоматичний розбір ще не підключено. Заповніть ТЗ через звичайний чат claude.ai (підійде і безкоштовний акаунт):</div>
+      <ol class="steps">
+        <li><button type="button" class="btn sm" id="copyPrompt">Скопіювати запит</button> <span class="note" id="copySt"></span></li>
+        <li>Відкрийте <a href="https://claude.ai/new" target="_blank" rel="noopener">новий чат claude.ai</a>, вставте запит і надішліть.</li>
+        <li>Скопіюйте відповідь Claude повністю і вставте сюди:</li>
+      </ol>
+      <textarea id="promptOut" readonly hidden rows="4"></textarea>
+      <textarea id="in_ans" rows="4" placeholder="Вставте відповідь Claude (текст, що починається з {)"></textarea>
+      <div class="row"><button type="button" class="btn" id="applyAns">Застосувати відповідь</button></div>
+      <div class="status" id="ansSt"></div>
+    </section>
+  </aside>
+
+  <main class="res">
+    <div class="banner" id="banner"></div>
+    <div class="toolbar">
+      <div class="legend">
+        <span><span class="sw" style="background:var(--ai);border-color:var(--ai-line)"></span>заповнено AI — перевірте</span>
+        <span><span class="sw" style="background:var(--input);border-color:var(--input-line)"></span>поле для ручного вводу</span>
+        <span><span class="sw" style="border-style:dashed"></span>заповнює замірник на об'єкті</span>
+      </div>
+      <div class="row">
+        <button class="btn ghost sm" id="clear">Очистити</button>
+        <button class="btn sm" id="pdf">Завантажити PDF</button>
+      </div>
+    </div>
+    <div class="status" id="pdfSt"></div>
+    <div class="sheet" id="sheet"></div>
+  </main>
+</div>
+<div id="pdfhost"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://accounts.google.com/gsi/client"></script>
+<script>
+/* ---------- модель ---------- */
+const MONTHS=["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
+function blank(){return{
+  head:{client:"",address:"",object:"",basis:"",visit:"",purpose:""},
+  important:[],questions:[],
+  ref:{inverter:"",battery:"",panels:"",consumption:"",loads:"",grid:"",roof:""},
+  goals:{green:null,active:null,grid:null,hybrid:null,uze_in:null,uze_out:null,comment:""},
+  cons:{avg:"",m:Array(12).fill("")},
+  tariff:{group:"",price:""},
+  place:{roof:null,ground:null},
+  roof:{type:"",typeOther:"",base:"",cover:"",coverOther:"",comment:""},
+  slab:{comment:""},
+  bld:{floors:"",height:"",lift:null,liftType:""},
+  mount:{material:"",invPlace:"",connPoint:""},
+  roofSpec:{comment:""},
+  conn:{phases:"",breaker:"",comment:""},
+  gen:{has:null,comment:""},
+  ground:{has:null},
+  runs:{boardAir:"",boardTrench:"",boardBld:"",roofAir:"",roofTrench:"",roofBld:"",invBat:""},
+  pay:{form:"",payer:""},
+  extra:"",custom:[],warnings:[]
+};}
+let S=blank(), AI={};
+
+const EXAMPLE_DESC=`Клієнт: Анна
+Об'єкт: приватний будинок, Червоний Хутір, Одеса
+Фази: 3
+Дах: чотирисхилий, металочерепиця; основні скати — північ/південь, менші — схід/захід. Південний скат сонячний. Точну площу даху клієнт не знає — потрібен замір.
+
+Запит / ціль:
+Гібридна СЕС насамперед для автономії під час відключень, особливо взимку. Минулої зими був блекаут близько тижня, через відсутність живлення не працював газовий котел і в будинку було холодно. Влітку — додаткова економія та незалежність від мережі.
+
+Споживання:
+Зараз невелике, будинок ще не повністю облаштований. У майбутньому: холодильник, газовий котел, кондиціонер, телевізор, Wi-Fi, комп'ютер/ноутбук, електродуховка, мікрохвильовка, робот-пилосос, витяжка, посудомийка, пральна та сушильна машини. Клієнт проживає переважно одна, тому не планує одночасну роботу всіх потужних приладів.
+
+Критичне навантаження: газовий котел — обов'язково; холодильник; Wi-Fi; телевізор; комп'ютер/ноутбук; влітку — кондиціонер.
+Клієнт готова під час блекауту переходити в режим економії та не використовувати пральну/посудомийну/сушильну машину тощо.
+
+Бажана АКБ: орієнтовно 15–16 кВт·год. Клієнт категорично не бачить потреби у 2×16 кВт·год, які їй раніше пропонували. Основний запит — адекватна конфігурація без переплати.
+
+Панелі:
+Клієнту раніше рахували 25 панелей, що її здивувало. Не планує продавати електроенергію/зелений тариф — потрібне рішення під власне споживання та резерв. Готова розглянути Longi, бажано підібрати оптимальну кількість панелей відповідно до фактичної площі та потреб.
+
+Інвертор:
+Будинок 3-фазний. Попередньо рахувати 3-фазний гібридний інвертор. Клієнт не розуміє різницю між 1- та 3-фазним рішенням, потребує пояснення на замірі.
+
+Кабель / технічне питання:
+На етапі будівництва ще у 2019 році вже прокладений силовий кабель від місця під інвертор/АКБ до горища. Попередній підрядник сказав, що кабель «не підходить», нібито потрібен спеціальний для сонячних панелей і пропонував заміну.
+Обов'язково перевірити на замірі: тип кабелю, переріз, довжину, стан, спосіб прокладання та можливість використання. Не обіцяти клієнту, що існуючий кабель підійде, поки технічний спеціаліст не перевірить.
+
+Безпека:
+Клієнт дуже переживає за пожежну безпеку та герметичність даху. Потрібно передбачити всі необхідні захисти DC/AC, правильно підібрати кріплення під металочерепицю та окремо проговорити, що монтаж виконується штатними покрівельними кріпленнями з герметизацією.
+
+Попередній підрядник:
+Клієнт консультувалась із приватним майстром, який робив СЕС сусіду. Компанії фактично немає, клієнта насторожили його рекомендації щодо великої кількості панелей/АКБ та заміни кабелю. Є високий запит на надійність, професійний монтаж і сервіс.
+
+Що важливо для клієнта: адекватна ціна без зайвого обладнання; не переплачувати за надлишкову генерацію; надійність та безпека; щоб узимку працював котел і критичні прилади; сервіс та можливість звернутися після монтажу; онлайн-моніторинг станції; гарантії.`;
+
+/* Заздалегідь розібраний приклад — щоб сторінка відкривалась у робочому стані */
+const EXAMPLE_RESULT={
+  head:{client:"Анна",address:"Одеса, Червоний Хутір",object:"Приватний будинок (облаштовується)",basis:"",visit:"",purpose:"Замір і збір даних для гібридної СЕС під автономію та власне споживання"},
+  important:[
+    "Кабель від місця під інвертор/АКБ до горища (прокладений у 2019): перевірити тип, переріз, довжину, стан, спосіб прокладання. НЕ обіцяти, що підійде, до висновку техспеціаліста.",
+    "Клієнт переживає за пожежну безпеку і герметичність даху: показати рішення з захистами DC/AC та штатними кріпленнями під металочерепицю з герметизацією.",
+    "Газовий котел — обов'язкове резервне навантаження. Оцінити виділення окремої групи резервних навантажень у щиті.",
+    "Клієнт проти «переобладнання»: 2×16 кВт·год АКБ і 25 панелей її насторожили. Кількість панелей рахувати від фактичної площі південного скату та потреб.",
+    "Пояснити на місці різницю між 1- та 3-фазним рішенням.",
+    "Важливі сервіс, онлайн-моніторинг і гарантії — підготувати відповіді."
+  ],
+  questions:[
+    "Рахунки / показники лічильника за останні 12 міс. (зараз споживання невелике)",
+    "Номінал ввідного автомата та місце вводу",
+    "Чи є генератор або плани на нього",
+    "Форма оплати і платник"
+  ],
+  ref:{inverter:"Гібридний 3-фазний (попередньо; зі слів клієнта)",battery:"≈15–16 кВт·год (бажання клієнта; 2×16 — не розглядає)",panels:"Longi, кількість — за фактичною площею (раніше рахували 25 — клієнт вважає забагато)",consumption:"Зараз невелике, будинок не облаштований; зростатиме",loads:"Критичні: газовий котел (обов'язково), холодильник, Wi-Fi, ТВ, ПК/ноутбук, влітку кондиціонер. Майбутні: електродуховка, мікрохвильовка, посудомийка, пральна та сушильна машини, витяжка",grid:"3 фази",roof:"Чотирисхилий, металочерепиця; основні скати Пн/Пд, менші Сх/Зх; південний сонячний; площа невідома"},
+  goals:{green:false,active:null,grid:false,hybrid:true,uze_in:true,uze_out:false,comment:"Головне — автономія під час блекаутів (особливо взимку, котел). Влітку — економія. Електроенергію не продає."},
+  cons:{avg:"",m:Array(12).fill("")},
+  tariff:{group:"",price:""},
+  place:{roof:true,ground:null},
+  roof:{type:"чотирисхилий",typeOther:"",base:"",cover:"металочерепиця",coverOther:"",comment:"Основні скати Пн/Пд, менші Сх/Зх. Південний скат — основний під ФЕМ."},
+  slab:{comment:""},
+  bld:{floors:"",height:"",lift:null,liftType:""},
+  mount:{material:"металочерепиця — штатні покрівельні кріплення з герметизацією",invPlace:"Є підготовлене місце під інвертор/АКБ, звідки прокладено кабель на горище — розглянути як перший варіант",connPoint:""},
+  roofSpec:{comment:"Площа даху клієнту невідома — потрібен замір"},
+  conn:{phases:"3",breaker:"",comment:"Виділити групу резервних навантажень: газовий котел, холодильник, Wi-Fi, ТВ, ПК; влітку кондиціонер"},
+  gen:{has:null,comment:""},
+  ground:{has:null},
+  runs:{boardAir:"",boardTrench:"",boardBld:"",roofAir:"",roofTrench:"",roofBld:"",invBat:""},
+  pay:{form:"",payer:""},
+  extra:"Клієнт проживає переважно одна, одночасна робота всіх потужних приладів не планується. Під час блекауту готова до режиму економії. Попередньо консультувалась із приватним майстром, рекомендації якого її насторожили.",
+  custom:[],warnings:[]
+};
+
+/* ---------- утиліти ---------- */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+function getP(o,p){return p.split(".").reduce((a,k)=>a==null?a:a[k],o);}
+function setP(o,p,v){const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null)a[k]={};a=a[k];});a[ks[ks.length-1]]=v;}
+function cleanVtt(t){
+  return String(t||"").replace(/\r/g,"").split("\n")
+    .filter(l=>!/^\s*WEBVTT/.test(l)&&!/-->/.test(l)&&!/^\s*\d+\s*$/.test(l)&&!/^\s*NOTE\b/.test(l))
+    .map(l=>l.replace(/<[^>]+>/g,"").trim()).filter(Boolean).join(" ").replace(/\s+/g," ").trim();
+}
+
+/* ---------- опис полів розділу 2 ---------- */
+const TRI=(p,t)=>({k:"tri",p,t}), TXT=(p,t)=>({k:"txt",p,t}), AREA=(p,t)=>({k:"area",p,t}), CH=(p,t,o)=>({k:"ch",p,t,o}), ON=t=>({k:"on",t});
+const ROOF_T=["плаский","односкатний","двоскатний (шатровий)","трискатний","чотирисхилий","інше"];
+const COVER=["руберойд","мембрана","профнастіл","металочерепиця","черепиця","інше"];
+const SEC2=[
+  {l:"Завдання від клієнта та бажаний результат від СЕС",f:[TRI("goals.green","Зелений тариф"),TRI("goals.active","Активний споживач"),TRI("goals.grid","Мережева СЕС"),TRI("goals.hybrid","Гібридна СЕС"),TRI("goals.uze_in","УЗЕ арбітраж внутрішній (автономність від АКБ)"),TRI("goals.uze_out","УЗЕ арбітраж зовнішній"),AREA("goals.comment","Коментар")]},
+  {l:"Місячне споживання літо/зима",h:"зняти показники лічильника / рахунки за останні 12 міс.",f:[TXT("cons.avg","Середнє"),{k:"months"}]},
+  {l:"Група споживача та тариф",h:"уточнити на об'єкті / за рахунком",f:[{k:"g2",f:[TXT("tariff.group","Група"),TXT("tariff.price","Тариф, грн/кВт·год")]}]},
+  {l:"Місце розміщення ФЕМ",f:[TRI("place.roof","Дах"),TRI("place.ground","Наземне")]},
+  {l:"Тип даху та матеріал покрівлі",h:"за можливості — нерівності й перешкоди для монтажу кріплень",f:[CH("roof.type","Тип даху",ROOF_T),TXT("roof.base","Основа покрівлі (заявлено клієнтом — перевірити)"),CH("roof.cover","Покрівельне покриття",COVER),AREA("roof.comment","Коментар")]},
+  {l:"Тип перекриття (стан)",h:"стан несучої конструкції, тип плити, допустиме навантаження на м²",f:[ON("Фото зроблено"),AREA("slab.comment","Коментар")]},
+  {l:"Висота та поверховість будівлі",f:[{k:"g2",f:[TXT("bld.floors","Кількість поверхів"),TXT("bld.height","Висота будівлі, м")]},TRI("bld.lift","Потрібні підйомні механізми?"),TXT("bld.liftType","Які підйомні механізми")]},
+  {l:"Примітки до покрівлі / тип кріплень, розміщення інверторної групи",h:"плановий тип кріплень, орієнтація, кут нахилу",f:[TXT("mount.material","Матеріал / тип кріплення"),AREA("mount.invPlace","Розміщення інвертора та АКБ: 2–3 варіанти (техприміщення / гараж / підвал / фасад). Фінальне місце узгодити з клієнтом особисто на об'єкті"),TXT("mount.connPoint","Розміщення точки підключення")]},
+  {l:"Характеристики покрівлі",h:"крок хвилі, висота, ширина профілю; наземна — бетон/геошуруп",f:[AREA("roofSpec.comment","Заявлений орієнтовний розмір даху")]},
+  {l:"Опис точки підключення",h:"кількість вводів, потужність, до чого підключаємо",f:[CH("conn.phases","Мережа будинку, фаз",["1","3"]),TXT("conn.breaker","Номінал ввідного автомата, А"),AREA("conn.comment","Щит, автомати, місце вводу; окрема група пріоритетних навантажень")]},
+  {l:"Щит, у який підключаємо інвертор",f:[ON("Фото зроблено")]},
+  {l:"Інтеграція генератора в систему",f:[TRI("gen.has","Наявність генератора / потреба інтеграції"),AREA("gen.comment","Розміщення та характеристики (фото шильдика)")]},
+  {l:"Наявність контуру заземлення",f:[TRI("ground.has","Контур заземлення (фото)")]},
+  {l:"Однолінійна схема",f:[ON("Фото зроблено")]},
+  {l:"Кабельна траса: щит ↔ інвертор",h:"довжини підлягають виміру на об'єкті",f:[{k:"g3",f:[TXT("runs.boardAir","Повітря, м"),TXT("runs.boardTrench","Траншея, м"),TXT("runs.boardBld","Будівля, м")]},ON("Відео маршруту з коментарями")]},
+  {l:"Кабельна траса: дах (ФЕМ) ↔ інвертор",h:"довжини підлягають виміру на об'єкті",f:[{k:"g3",f:[TXT("runs.roofAir","Повітря, м"),TXT("runs.roofTrench","Траншея, м"),TXT("runs.roofBld","Будівля, м")]},ON("Відео маршруту з коментарями")]},
+  {l:"Кабельна траса: інвертор ↔ АКБ",f:[TXT("runs.invBat","Довжина, м")]},
+  {l:"Форма оплати",f:[CH("pay.form","Форма",["без ПДВ","з ПДВ","ФОП ІІ групи","ФОП ІІІ групи"]),TXT("pay.payer","Платник (ТОВ / ФОП / фізична особа)")]},
+  {l:"Додаткові коментарі",f:[AREA("extra","")]}
+];
+const SEC1=[["ref.inverter","Інвертор"],["ref.battery","АКБ"],["ref.panels","Панелі (за КП)"],["ref.consumption","Середнє споживання"],["ref.loads","Основні навантаження"],["ref.grid","Електромережа будинку"],["ref.roof","Дах (заявлено клієнтом)"]];
+const HEAD=[["head.client","Клієнт"],["head.address","Адреса об'єкта"],["head.object","Об'єкт"],["head.basis","Підстава"],["head.visit","Дата/час виїзду"],["head.purpose","Мета виїзду"]];
+const SEC3=["Обов'язково — друк детального фото об'єкта з Google Earth (перпендикулярне, орієнтація строго на Північ)","Відмітити всі інсталяції на даху, що заважають встановленню панелей: габарити та прив'язка по двох осях","Відмітити кут нахилу та напрямок; за неможливості — висоту даху з землі","Відмітити ввідні автомати, генератор, планове місце інвертора, АКБ і зони ФЕМ"];
+const SEC4=["Детальні фото покрівлі, суміжні об'єкти, всі тінеутворюючі об'єкти","Щитова: автоматика, вільне місце для ТС; вбудований / навісний; 3Ф / 1Ф","Генератор, шильдик з характеристиками (за наявності)","Місце розміщення інвертора та АКБ (2–3 варіанти для погодження з клієнтом)","Місця прокладання кабельних груп (дах→інвертор, інвертор→АКБ, інвертор→щит)","Під'їзні шляхи, в'їзд/виїзд на територію клієнта","Ділянка для розміщення обладнання на період монтажу"];
+
+/* ---------- редактор ---------- */
+const isAI=p=>AI[p]?" ai":"";
+function ctl(f){
+  if(f.k==="txt")return `<label class="fi${isAI(f.p)}"><span>${esc(f.t)}</span><input type="text" id="e_${f.p}" data-p="${f.p}" value="${esc(getP(S,f.p))}"></label>`;
+  if(f.k==="area"){const v=getP(S,f.p)||"";return `<label class="fi${isAI(f.p)}">${f.t?`<span>${esc(f.t)}</span>`:""}<textarea id="e_${f.p}" data-p="${f.p}" rows="${Math.min(8,Math.max(2,Math.ceil(v.length/70)))}">${esc(v)}</textarea></label>`;}
+  if(f.k==="tri"){const v=getP(S,f.p),a=AI[f.p]?" ai":"";return `<div class="tri" data-tri="${f.p}"><span class="t">${esc(f.t)}</span><button type="button" class="chip${v===true?" on"+a:""}" data-v="1">ТАК</button><button type="button" class="chip${v===false?" on"+a:""}" data-v="0">НІ</button></div>`;}
+  if(f.k==="ch"){const v=getP(S,f.p),a=AI[f.p]?" ai":"";const other=f.p==="roof.type"?"roof.typeOther":f.p==="roof.cover"?"roof.coverOther":null;
+    return `<div class="fi"><span>${esc(f.t)}</span><div class="chips" data-ch="${f.p}">${f.o.map(o=>`<button type="button" class="chip${v===o?" on"+a:""}" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>${other&&v==="інше"?`<input type="text" data-p="${other}" id="e_${other}" placeholder="вкажіть" value="${esc(getP(S,other))}">`:""}</div>`;}
+  if(f.k==="on")return `<div class="onsite">☐ ${esc(f.t)} — на об'єкті</div>`;
+  if(f.k==="months")return `<div class="months">${MONTHS.map((m,i)=>`<label class="fi${isAI("cons.m."+i)}"><span>${m}</span><input type="text" data-p="cons.m.${i}" id="e_m${i}" value="${esc(S.cons.m[i])}"></label>`).join("")}</div>`;
+  if(f.k==="g2"||f.k==="g3")return `<div class="grid3" style="grid-template-columns:repeat(${f.k==="g2"?2:3},minmax(0,1fr))">${f.f.map(ctl).join("")}</div>`;
+  return "";
+}
+function render(){
+  const h=[];
+  h.push(`<div class="doctitle"><b>ЧЕК-ЛИСТ НА РОЗРОБКУ ТЕХНІЧНОГО РІШЕННЯ</b><span>для СЕС домогосподарства (B2C) — виїзний замір і проєктування</span></div>`);
+  h.push(`<div class="tw"><table class="ck">${HEAD.map(([p,l])=>`<tr><td class="l">${l}</td><td><div class="cell">${ctl({k:"txt",p,t:""}).replace("<span></span>","")}</div></td></tr>`).join("")}</table></div>`);
+  h.push(`<h3>Головне для замірника</h3><div class="key"><div class="fi${isAI("important")}"><span>Що обов'язково перевірити / врахувати / не обіцяти — кожен пункт з нового рядка</span><textarea id="e_important" data-list="important" rows="${Math.max(3,S.important.length+1)}">${esc(S.important.join("\n"))}</textarea></div>
+    <div class="fi${isAI("questions")}"><span>Що уточнити у клієнта</span><textarea id="e_questions" data-list="questions" rows="${Math.max(2,S.questions.length+1)}">${esc(S.questions.join("\n"))}</textarea></div></div>`);
+  h.push(`<h3>1. Вихідні та довідкові дані (за ТЗ і КП) — для звірки на об'єкті</h3><div class="tw"><table class="ck">${SEC1.map(([p,l])=>`<tr><td class="l">${l}</td><td><div class="cell">${ctl({k:"area",p,t:""})}</div></td></tr>`).join("")}</table></div>
+    <div class="foot">Дані внесені зі слів клієнта та КП — під час виїзду підлягають обов'язковій перевірці замірником.</div>`);
+  h.push(`<h3>2. Чек-лист замірника</h3><div class="tw"><table class="ck">${SEC2.map(r=>`<tr><td class="l">${r.l}${r.h?`<i>${r.h}</i>`:""}</td><td><div class="cell">${r.f.map(ctl).join("")}</div></td></tr>`).join("")}</table></div>`);
+  h.push(`<h3>Додаткова інформація</h3><div class="custom" id="custom">${S.custom.map((c,i)=>`<div class="cr"><input type="text" data-cl="${i}" id="cl${i}" placeholder="Назва" value="${esc(c.label)}"><textarea data-cv="${i}" id="cv${i}" rows="2" placeholder="Значення">${esc(c.value)}</textarea><button type="button" class="x" data-del="${i}" aria-label="Видалити">×</button></div>`).join("")}
+    <div><button type="button" class="btn ghost sm" id="addRow">+ Додати поле</button></div></div>`);
+  h.push(`<h3>3. Фото об'єкта з Google Earth</h3><div class="photos">${SEC3.map(t=>`<div>${esc(t)}</div>`).join("")}</div>`);
+  h.push(`<h3>4. Необхідні фото (засвідчити позначкою)</h3><div class="photos">${SEC4.map(t=>`<div>${esc(t)}</div>`).join("")}</div>`);
+  h.push(`<h3>5. Схема підключення</h3><div class="onsite" style="height:90px">Малює замірник на об'єкті (у PDF — порожнє поле)</div>`);
+  $("sheet").innerHTML=h.join("");
+  saveDraft();
+}
+/* події редактора */
+$("sheet").addEventListener("input",e=>{
+  const t=e.target;
+  if(t.dataset.p){setP(S,t.dataset.p,t.value);}
+  else if(t.dataset.list){S[t.dataset.list]=t.value.split("\n").map(s=>s.trim()).filter(Boolean);}
+  else if(t.dataset.cl!=null){S.custom[+t.dataset.cl].label=t.value;}
+  else if(t.dataset.cv!=null){S.custom[+t.dataset.cv].value=t.value;}
+  saveDraft();
+});
+$("sheet").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  const tri=b.closest("[data-tri]"),ch=b.closest("[data-ch]");
+  if(tri){const p=tri.dataset.tri,v=b.dataset.v==="1";setP(S,p,getP(S,p)===v?null:v);delete AI[p];render();}
+  else if(ch){const p=ch.dataset.ch,v=b.dataset.v;setP(S,p,getP(S,p)===v?"":v);delete AI[p];render();}
+  else if(b.id==="addRow"){S.custom.push({label:"",value:""});render();const i=S.custom.length-1;$("cl"+i)?.focus();}
+  else if(b.dataset.del!=null){S.custom.splice(+b.dataset.del,1);render();}
+});
+
+/* ---------- чернетка ---------- */
+function saveDraft(){try{localStorage.setItem("tz_draft",JSON.stringify({S,AI,ex:!!window.__example}));}catch(e){}}
+function loadDraft(){try{const d=JSON.parse(localStorage.getItem("tz_draft")||"null");if(d&&d.S){S=Object.assign(blank(),d.S);AI=d.AI||{};window.__example=!!d.ex;return true;}}catch(e){}return false;}
+
+/* ---------- злиття результату AI ---------- */
+function merge(r,manualHead){
+  const fresh=blank();AI={};
+  const walk=(src,base)=>{Object.keys(src||{}).forEach(k=>{
+    const p=base?base+"."+k:k,v=src[k];
+    if(k==="custom"||k==="warnings"||p==="cons.m")return;
+    if(v&&typeof v==="object"&&!Array.isArray(v))walk(v,p);
+    else if(Array.isArray(v)){if(v.length){setP(fresh,p,v.map(String));AI[p]=1;}}
+    else if(v!==null&&v!==undefined&&v!==""){setP(fresh,p,typeof v==="boolean"?v:String(v));AI[p]=1;}
+  });};
+  walk(r,"");
+  const m=r?.cons?.m;if(Array.isArray(m))m.slice(0,12).forEach((v,i)=>{if(v!=null&&v!==""){fresh.cons.m[i]=String(v);AI["cons.m."+i]=1;}});
+  Object.entries(manualHead).forEach(([k,v])=>{if(v){fresh.head[k]=v;delete AI["head."+k];}});
+  fresh.warnings=Array.isArray(r?.warnings)?r.warnings.map(String):[];
+  S=fresh;
+}
+function showBanner(){
+  const b=$("banner");const w=S.warnings||[];
+  if(window.__example){b.hidden=false;b.innerHTML="Це приклад: ТЗ заповнене з опису менеджера (Анна, Червоний Хутір). Вставте свою транскрипцію або опис ліворуч і натисніть «Заповнити ТЗ».";return;}
+  if(w.length){b.hidden=false;b.innerHTML="Зверніть увагу:<ul>"+w.map(x=>`<li>${esc(x)}</li>`).join("")+"</ul>";}else b.hidden=true;
+}
+
+/* ---------- промпт ---------- */
+function buildPrompt(tr,desc,kp,head){
+  const shape=JSON.stringify(Object.assign(blank(),{custom:undefined}),null,0).replace(/"m":\["","","","","","","","","","","",""\]/,'"m":[12 значень або null]');
+  return `Ти — асистент інженерного відділу ESCORE (проєктування та монтаж СЕС в Україні). Заповни чек-ліст ТЗ для замірника, який поїде на об'єкт, з матеріалів менеджера нижче.
+
+ПРАВИЛА
+- Пиши українською, коротко, як технічні нотатки для інженера.
+- Бери лише те, що прямо сказано або однозначно випливає. Нічого не вигадуй. Невідоме — null або "".
+- Транскрипція може бути російською чи суржиком, з вигуками, повторами, обірваними фразами. Якщо клієнт себе виправляє — бери останню версію.
+- Якщо транскрипція не стосується СЕС/енергетики (напр. інша розмова) — ігноруй її і напиши про це в warnings.
+- Поля ТАК/НІ: true = ТАК, false = НІ, null = невідомо. false став лише коли це сказано або однозначно випливає (напр. «не планує продавати електроенергію» → goals.green=false).
+- goals.uze_in — автономність від АКБ (резерв при відключеннях). goals.hybrid — гібридна СЕС.
+- ref (розділ 1): ${kp?"є КП — інвертор/АКБ/панелі бери з КП і додай «(за КП)»; що не з КП — «(зі слів клієнта)».":"КП немає — заповнюй зі слів клієнта і додавай «(зі слів клієнта)» або «(попередньо)»."}
+- roof.type — одне з: ${ROOF_T.join(" | ")}. roof.cover — одне з: ${COVER.join(" | ")}. conn.phases — "1" або "3". pay.form — одне з: без ПДВ | з ПДВ | ФОП ІІ групи | ФОП ІІІ групи.
+- cons.m — 12 значень споживання по місяцях (січень…грудень), кВт·год, якщо названо; інакше null.
+- important — 3–8 пунктів: що замірник МУСИТЬ перевірити або врахувати на об'єкті, чого не можна обіцяти клієнту, побоювання клієнта. Сюди йде все важливе, що не вміщується в поля шаблону.
+- questions — що залишилось невідомим і треба уточнити у клієнта на виїзді.
+- extra — інша корисна інформація про клієнта (побут, історія з попереднім підрядником, що для нього важливо).
+- warnings — суперечності в даних або проблеми з матеріалами (порожній список, якщо все гаразд).
+- Довжини кабельних трас (runs) заповнюй, лише якщо їх названо.
+
+ВІДПОВІДЬ: лише один JSON-об'єкт точно такої структури (ключі не змінюй):
+${shape}
+
+ДАНІ, ВНЕСЕНІ МЕНЕДЖЕРОМ ВРУЧНУ (шапка):
+${JSON.stringify(head)}
+
+=== ТРАНСКРИПЦІЯ ДЗВІНКА ===
+${tr||"(немає)"}
+
+=== ОПИС ВІД МЕНЕДЖЕРА ===
+${desc||"(немає)"}
+
+=== КП ===
+${kp||"(немає)"}`;
+}
+
+/* ---------- AI ---------- */
+const CONFIG={
+  // URL веб-додатку Apps Script (Deploy → Web app → URL). Порожньо = тестовий режим через чат claude.ai
+  API_URL:"",
+  // Той самий OAuth-клієнт, що й у smeta (проєкт ESCORE-Maps). Сайт на escoreodessa.github.io уже дозволений.
+  CLIENT_ID:"758495999284-fnsq0qf281d7vcd84hu7ri6eu2189psg.apps.googleusercontent.com"
+};
+const LIVE=!!CONFIG.API_URL;
+let tokenClient=null,accessToken=null,tokenExpiry=0,userEmail="",pendingFill=false,ctl_=null,timer=null;
+function tokenOk(){return accessToken&&Date.now()<tokenExpiry-60000;}
+function initMode(){
+  if(!LIVE){
+    $("aiState").textContent="Тестовий режим: розбір через чат claude.ai";
+    $("manual").hidden=false;$("go").textContent="Підготувати запит";return;
+  }
+  $("modeBadge").hidden=true;
+  $("aiState").textContent="Увійдіть, щоб заповнювати ТЗ автоматично";$("signin").hidden=false;
+  if(!window.google||!google.accounts){$("aiState").textContent="Не завантажився вхід Google. Оновіть сторінку.";return;}
+  tokenClient=google.accounts.oauth2.initTokenClient({client_id:CONFIG.CLIENT_ID,scope:"openid email",callback:async resp=>{
+    if(resp.error){setSt("Вхід не виконано: "+resp.error,true);pendingFill=false;return;}
+    accessToken=resp.access_token;tokenExpiry=Date.now()+((+resp.expires_in||3600)*1000);
+    try{const i=await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+accessToken}}).then(r=>r.json());userEmail=i.email||"";}catch(e){}
+    $("aiState").textContent=userEmail||"Вхід виконано";$("signin").hidden=true;
+    if(pendingFill){pendingFill=false;fill();}
+  }});
+}
+$("signin").onclick=()=>tokenClient&&tokenClient.requestAccessToken({prompt:"consent"});
+window.addEventListener("load",initMode);
+function collect(){
+  return {tr:cleanVtt($("in_tr").value),desc:$("in_desc").value.trim(),kp:$("kpOn").checked?$("in_kp").value.trim():"",
+    head:{visit:$("h_visit").value.trim(),basis:$("h_basis").value.trim(),purpose:$("h_purpose").value.trim()}};
+}
+function showManual(){$("manual").hidden=false;$("manual").scrollIntoView({behavior:"smooth",block:"start"});}
+$("copyPrompt").onclick=()=>{
+  const c=collect();
+  if(!c.tr&&!c.desc){$("copySt").textContent="Спершу вставте транскрипцію або опис.";return;}
+  const p=buildPrompt(c.tr,c.desc,c.kp,c.head),out=$("promptOut");out.value=p;
+  const fallback=()=>{out.hidden=false;out.focus();out.select();$("copySt").textContent="Не вдалося скопіювати автоматично — текст виділено, натисніть Ctrl+C.";};
+  try{navigator.clipboard.writeText(p).then(()=>{out.hidden=true;$("copySt").textContent="Скопійовано ✓";},fallback);}catch(e){fallback();}
+};
+function parseAnswer(t){
+  t=String(t||"").trim();const fence=t.match(/```(?:json)?\s*([\s\S]*?)```/);if(fence)t=fence[1];
+  const a=t.indexOf("{"),b=t.lastIndexOf("}");if(a<0||b<=a)throw new Error("no json");
+  return JSON.parse(t.slice(a,b+1));
+}
+$("applyAns").onclick=()=>{
+  const st=$("ansSt");
+  try{const r=parseAnswer($("in_ans").value);window.__example=false;merge(r,collect().head);render();showBanner();
+    st.className="status";st.textContent="Готово. Перевірте зелені поля.";$("in_ans").value="";}
+  catch(e){st.className="status err";st.textContent="Не вдалося прочитати відповідь. Скопіюйте відповідь Claude повністю, від { до }.";}
+};
+function setSt(t,err){$("st").textContent=t;$("st").className="status"+(err?" err":"");}
+const ERR={forbidden:"Ваш Google-акаунт не має доступу до розбору. Зверніться до адміністратора.",no_key:"На сервері не налаштовано ключ API.",bad_request:"Запит завеликий або порожній. Скоротіть транскрипцію.",server:"Помилка сервера розбору."};
+$("go").onclick=()=>{
+  const c=collect();
+  if(!c.tr&&!c.desc){setSt("Вставте транскрипцію або опис.",true);return;}
+  if(!LIVE){setSt("");showManual();$("copyPrompt").click();return;}
+  if(!tokenOk()){if(!tokenClient){setSt("Вхід Google недоступний. Оновіть сторінку.",true);return;}pendingFill=true;tokenClient.requestAccessToken({prompt:accessToken?"":"consent"});return;}
+  fill();
+};
+async function fill(){
+  const c=collect();
+  ctl_=new AbortController();$("go").disabled=true;$("stop").hidden=false;
+  const t0=Date.now();setSt("Аналізую…");timer=setInterval(()=>setSt("Аналізую… "+Math.round((Date.now()-t0)/1000)+" с"),1000);
+  try{
+    const res=await fetch(CONFIG.API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({token:accessToken,prompt:buildPrompt(c.tr,c.desc,c.kp,c.head)}),signal:ctl_.signal});
+    const d=await res.json();
+    if(!d.ok)throw{code:d.error,message:d.message};
+    let r;try{r=parseAnswer(d.text);}catch(e){throw{code:"invalid_json"};}
+    window.__example=false;merge(r,c.head);render();showBanner();
+    setSt("Готово за "+Math.round((Date.now()-t0)/1000)+" с. Перевірте зелені поля.");
+  }catch(e){
+    if(e&&e.name==="AbortError"){setSt("Зупинено.");}
+    else if(e&&e.code==="invalid_json"){setSt("AI повернув відповідь у неочікуваному вигляді. Натисніть «Заповнити ТЗ» ще раз.",true);}
+    else if(e&&e.code==="forbidden"){accessToken=null;setSt(ERR.forbidden,true);}
+    else if(e&&ERR[e.code]){setSt(ERR[e.code]+(e.message?" ("+e.message+")":""),true);}
+    else if(e&&e.code==="anthropic"){setSt("Помилка Claude API: "+(e.message||"невідома"),true);}
+    else{setSt("Сервер розбору не відповів. Можна заповнити через чат claude.ai нижче.",true);showManual();}
+  }finally{clearInterval(timer);$("go").disabled=false;$("stop").hidden=true;}
+}
+$("stop").onclick=()=>ctl_&&ctl_.abort();
+$("loadEx").onclick=()=>{$("in_desc").value=EXAMPLE_DESC;$("in_tr").value="";setSt("Приклад вставлено. Натисніть «Заповнити ТЗ».");};
+$("kpOn").onchange=()=>{$("kpBox").hidden=!$("kpOn").checked;};
+$("in_file").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$("in_tr").value=String(r.result);setSt("Файл «"+f.name+"» завантажено.");};r.readAsText(f);e.target.value="";};
+$("clear").onclick=()=>{
+  const b=$("clear");
+  if(b.dataset.confirm){S=blank();AI={};window.__example=false;render();showBanner();b.textContent="Очистити";delete b.dataset.confirm;return;}
+  b.dataset.confirm="1";b.textContent="Точно очистити?";setTimeout(()=>{b.textContent="Очистити";delete b.dataset.confirm;},3000);
+};
+
+/* ---------- PDF ---------- */
+function bx(on){return `<span class="bx${on?" on":""}"></span>`;}
+function val(v){v=v==null?"":String(v).trim();return v?esc(v).replace(/\n/g,"<br>"):`<span class="blank">&nbsp;</span>`;}
+function triP(p,t){const v=getP(S,p);return `<div>${esc(t)} — ${bx(v===true)}ТАК ${bx(v===false)}НІ</div>`;}
+function pf(f){
+  if(f.k==="txt")return `<div>${f.t?esc(f.t)+": ":""}${val(getP(S,f.p))}</div>`;
+  if(f.k==="area"){const v=getP(S,f.p);return `<div>${f.t?`<span class="muted">${esc(f.t)}:</span> `:""}${val(v)}</div>`;}
+  if(f.k==="tri")return triP(f.p,f.t);
+  if(f.k==="ch"){const v=getP(S,f.p);const other=f.p==="roof.type"?S.roof.typeOther:f.p==="roof.cover"?S.roof.coverOther:"";
+    return `<div>${esc(f.t)}: ${f.o.map(o=>bx(v===o)+esc(o)+(o==="інше"&&v==="інше"&&other?" ("+esc(other)+")":"")).join(" ")}</div>`;}
+  if(f.k==="on")return `<div>${bx(false)}${esc(f.t)}</div>`;
+  if(f.k==="months")return `<div>${MONTHS.map((m,i)=>`${m} ${val(S.cons.m[i])}`).join(" &nbsp; ")}</div>`;
+  if(f.k==="g2"||f.k==="g3")return `<div>${f.f.map(x=>`${esc(x.t)}: ${val(getP(S,x.p))}`).join(" &nbsp;&nbsp; ")}</div>`;
+  return "";
+}
+function paperHTML(){
+  const li=a=>a.length?`<ul>${a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<div class="muted">—</div>`;
+  return `<div class="paper">
+  <div class="pt"><b>ЧЕК-ЛИСТ НА РОЗРОБКУ ТЕХНІЧНОГО РІШЕННЯ</b><span>для СЕС домогосподарства (B2C) — виїзний замір і проєктування</span></div>
+  <table>${HEAD.map(([p,l])=>`<tr><td class="l">${l}</td><td>${val(getP(S,p))}</td></tr>`).join("")}</table>
+  <div class="keyp"><b>Головне для замірника</b>${li(S.important)}<b>Уточнити у клієнта</b>${li(S.questions)}</div>
+  <h5>1. Вихідні та довідкові дані (за ТЗ і КП) — для звірки на об'єкті</h5>
+  <table>${SEC1.map(([p,l])=>`<tr><td class="l">${l}</td><td>${val(getP(S,p))}</td></tr>`).join("")}</table>
+  <div class="muted"><i>Дані внесені зі слів клієнта та КП — під час виїзду підлягають обов'язковій перевірці замірником.</i></div>
+  <h5>2. Чек-лист замірника</h5>
+  <table>${SEC2.map(r=>`<tr><td class="l">${r.l}${r.h?`<i>${r.h}</i>`:""}</td><td>${r.f.map(pf).join("")}</td></tr>`).join("")}
+  ${S.custom.filter(c=>c.label||c.value).map(c=>`<tr><td class="l">${esc(c.label||"Додатково")}</td><td>${val(c.value)}</td></tr>`).join("")}</table>
+  <h5>3. Фото об'єкта з Google Earth</h5><table>${SEC3.map(t=>`<tr><td>${bx(false)}${esc(t)}</td></tr>`).join("")}</table>
+  <h5>4. Необхідні фото (засвідчити позначкою)</h5><table>${SEC4.map(t=>`<tr><td>${bx(false)}${esc(t)}</td></tr>`).join("")}</table>
+  <h5>5. Схема підключення</h5><div class="scheme"></div>
+  </div>`;
+}
+$("pdf").onclick=async()=>{
+  const st=$("pdfSt");
+  if(!window.html2pdf){st.textContent="Модуль PDF не завантажився. Оновіть сторінку.";st.className="status err";return;}
+  $("pdf").disabled=true;st.className="status";st.textContent="Формую PDF…";
+  try{
+    const host=$("pdfhost");host.innerHTML=paperHTML();
+    const name=("ТЗ_замір_"+(S.head.client||"клієнт")+"_"+(S.head.address||"")).replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g,"_").replace(/_+$/,"")+".pdf";
+    await html2pdf().set({filename:name,margin:[10,9,12,9],image:{type:"jpeg",quality:.95},html2canvas:{scale:2,backgroundColor:"#ffffff"},jsPDF:{unit:"mm",format:"a4"},pagebreak:{mode:["css","legacy"],avoid:["tr",".keyp"]}}).from(host.firstElementChild).save();
+    host.innerHTML="";st.textContent="PDF збережено.";
+  }catch(e){st.className="status err";st.textContent="Не вдалося створити PDF: "+((e&&e.message)||"помилка");}
+  $("pdf").disabled=false;
+};
+
+/* ---------- старт ---------- */
+if(!loadDraft()){window.__example=true;merge(EXAMPLE_RESULT,{});S.warnings=[];}
+render();showBanner();
+</script>
+</body>
+</html>
