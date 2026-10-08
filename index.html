@@ -53,6 +53,7 @@ input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);
 .filebtn input{display:none}
 .steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:13px}
 .steps a{color:var(--accent)}
+.steps code{background:var(--sunk);padding:0 4px;border-radius:3px}
 
 main.res{min-width:0;display:flex;flex-direction:column;gap:14px}
 .banner{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 14px;font-size:13px}
@@ -168,13 +169,14 @@ table.ck td.l i{display:block;font-weight:400;color:var(--muted);font-size:11.5p
       <h2>Розбір через чат claude.ai</h2>
       <div class="note">Тестовий режим: автоматичний розбір ще не підключено. Заповніть ТЗ через звичайний чат claude.ai (підійде і безкоштовний акаунт):</div>
       <ol class="steps">
-        <li><button type="button" class="btn sm" id="copyPrompt">Скопіювати запит</button> <span class="note" id="copySt"></span></li>
-        <li>Відкрийте <a href="https://claude.ai/new" target="_blank" rel="noopener">новий чат claude.ai</a>, вставте запит і надішліть.</li>
-        <li>Скопіюйте відповідь Claude повністю і вставте сюди:</li>
+        <li><b>Скопіюйте запит</b> — він уже містить інструкцію для AI, шаблон чек-листа і ваші матеріали. Нічого дописувати не треба.<br><button type="button" class="btn sm" id="copyPrompt">Скопіювати запит</button> <span class="note" id="copySt"></span></li>
+        <li>Відкрийте <a href="https://claude.ai/new" target="_blank" rel="noopener">новий чат claude.ai</a>, вставте (Ctrl+V) і натисніть Enter. Жодних питань ставити не потрібно.</li>
+        <li>Claude відповість блоком тексту, що починається з <code>{</code> — це дані для чек-листа, читати їх не потрібно. Скопіюйте відповідь повністю (кнопка копіювання під відповіддю) і вставте нижче.</li>
       </ol>
       <textarea id="promptOut" readonly hidden rows="4"></textarea>
       <textarea id="in_ans" rows="4" placeholder="Вставте відповідь Claude (текст, що починається з {)"></textarea>
       <div class="row"><button type="button" class="btn" id="applyAns">Застосувати відповідь</button></div>
+      <div class="note">Якщо Claude відповів звичайним текстом або з'явилась помилка — відкрийте новий чат і повторіть з кроку 1.</div>
       <div class="status" id="ansSt"></div>
     </section>
   </aside>
