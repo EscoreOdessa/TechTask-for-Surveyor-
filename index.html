@@ -98,6 +98,15 @@ table.ck td.l i{display:block;font-weight:400;color:var(--muted);font-size:11.5p
 .x{font:inherit;border:none;background:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:6px}
 .foot{font-size:11.5px;color:var(--muted);font-style:italic;margin-top:6px}
 .photos{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:center}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop input{display:none}
+.pgallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:10px}
+.pcard{border:1px solid var(--line);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:6px;background:var(--sunk);position:relative}
+.pcard img{width:100%;height:130px;object-fit:cover;border-radius:5px;background:var(--surface)}
+.pcard input{font-size:12.5px}
+.pcard .x{position:absolute;top:2px;right:2px;background:var(--surface);border-radius:999px;width:28px;height:28px;padding:0}
+.links{display:flex;flex-direction:column;gap:6px;margin-top:12px}
 .photos div::before{content:"";display:inline-block;width:11px;height:11px;border:1.5px solid var(--muted);border-radius:2px;margin-right:8px;vertical-align:-1px}
 
 /* PDF — завжди «паперовий» світлий вигляд */
@@ -116,6 +125,11 @@ table.ck td.l i{display:block;font-weight:400;color:var(--muted);font-size:11.5p
 .paper .keyp{border:1.5px solid var(--p-ink);padding:7px 9px;margin:8px 0}
 .paper .keyp ul{margin:4px 0 0;padding-left:16px}
 .paper .scheme{height:230px;border:1px solid var(--p-line)}
+.paper .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.paper .pph{page-break-inside:avoid;border:1px solid var(--p-line);padding:4px;text-align:center}
+.paper .pph img{max-width:100%;max-height:330px;display:block;margin:0 auto}
+.paper .pph div{font-size:10.5px;margin-top:3px}
+.paper a{color:#1d5fa8;word-break:break-all}
 .paper tr,.paper .keyp{page-break-inside:avoid}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -223,7 +237,7 @@ function blank(){return{
   ground:{has:null},
   runs:{boardAir:"",boardTrench:"",boardBld:"",roofAir:"",roofTrench:"",roofBld:"",invBat:""},
   pay:{form:"",payer:""},
-  extra:"",custom:[],warnings:[]
+  extra:"",custom:[],links:[],warnings:[]
 };}
 let S=blank(), AI={};
 
@@ -362,6 +376,13 @@ function render(){
   h.push(`<h3>2. Чек-лист замірника</h3><div class="tw"><table class="ck">${SEC2.map(r=>`<tr><td class="l">${r.l}${r.h?`<i>${r.h}</i>`:""}</td><td><div class="cell">${r.f.map(ctl).join("")}</div></td></tr>`).join("")}</table></div>`);
   h.push(`<h3>Додаткова інформація</h3><div class="custom" id="custom">${S.custom.map((c,i)=>`<div class="cr"><input type="text" data-cl="${i}" id="cl${i}" placeholder="Назва" value="${esc(c.label)}"><textarea data-cv="${i}" id="cv${i}" rows="2" placeholder="Значення">${esc(c.value)}</textarea><button type="button" class="x" data-del="${i}" aria-label="Видалити">×</button></div>`).join("")}
     <div><button type="button" class="btn ghost sm" id="addRow">+ Додати поле</button></div></div>`);
+  h.push(`<h3>Фото та посилання</h3>
+    <label class="drop" id="drop"><input type="file" id="photoIn" accept="image/*" multiple>
+      <b>Додати фото</b><span>Перетягніть файли сюди, оберіть з комп'ютера або вставте скриншот (Ctrl+V). Напр. знімок Google Earth, фото даху чи щита від клієнта.</span></label>
+    <div class="pgallery">${PHOTOS.map((ph,i)=>`<div class="pcard"><img src="${ph.src}" alt=""><input type="text" data-pc="${i}" id="pc${i}" placeholder="Підпис, напр. «Південний скат»" value="${esc(ph.caption)}"><button type="button" class="x" data-pdel="${i}" aria-label="Видалити фото">×</button></div>`).join("")}</div>
+    ${PHOTOS.length?`<div class="note">Фото потрапляють у PDF, але не зберігаються після закриття вкладки.</div>`:""}
+    <div class="links">${S.links.map((l,i)=>`<div class="cr" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto;gap:6px"><input type="text" data-ll="${i}" id="ll${i}" placeholder="Назва, напр. «Локація»" value="${esc(l.label)}"><input type="text" data-lu="${i}" id="lu${i}" placeholder="https://…" value="${esc(l.url)}"><button type="button" class="x" data-ldel="${i}" aria-label="Видалити посилання">×</button></div>`).join("")}
+      <div><button type="button" class="btn ghost sm" id="addLink">+ Додати посилання</button></div></div>`);
   h.push(`<h3>3. Фото об'єкта з Google Earth</h3><div class="photos">${SEC3.map(t=>`<div>${esc(t)}</div>`).join("")}</div>`);
   h.push(`<h3>4. Необхідні фото (засвідчити позначкою)</h3><div class="photos">${SEC4.map(t=>`<div>${esc(t)}</div>`).join("")}</div>`);
   h.push(`<h3>5. Схема підключення</h3><div class="onsite" style="height:90px">Малює замірник на об'єкті (у PDF — порожнє поле)</div>`);
@@ -375,6 +396,9 @@ $("sheet").addEventListener("input",e=>{
   else if(t.dataset.list){S[t.dataset.list]=t.value.split("\n").map(s=>s.trim()).filter(Boolean);}
   else if(t.dataset.cl!=null){S.custom[+t.dataset.cl].label=t.value;}
   else if(t.dataset.cv!=null){S.custom[+t.dataset.cv].value=t.value;}
+  else if(t.dataset.pc!=null){PHOTOS[+t.dataset.pc].caption=t.value;}
+  else if(t.dataset.ll!=null){S.links[+t.dataset.ll].label=t.value;}
+  else if(t.dataset.lu!=null){S.links[+t.dataset.lu].url=t.value;}
   saveDraft();
 });
 $("sheet").addEventListener("click",e=>{
@@ -382,9 +406,31 @@ $("sheet").addEventListener("click",e=>{
   const tri=b.closest("[data-tri]"),ch=b.closest("[data-ch]");
   if(tri){const p=tri.dataset.tri,v=b.dataset.v==="1";setP(S,p,getP(S,p)===v?null:v);delete AI[p];render();}
   else if(ch){const p=ch.dataset.ch,v=b.dataset.v;setP(S,p,getP(S,p)===v?"":v);delete AI[p];render();}
+  else if(b.id==="addLink"){S.links.push({label:"",url:""});render();$("ll"+(S.links.length-1))?.focus();}
+  else if(b.dataset.ldel!=null){S.links.splice(+b.dataset.ldel,1);render();}
+  else if(b.dataset.pdel!=null){PHOTOS.splice(+b.dataset.pdel,1);render();}
   else if(b.id==="addRow"){S.custom.push({label:"",value:""});render();const i=S.custom.length-1;$("cl"+i)?.focus();}
   else if(b.dataset.del!=null){S.custom.splice(+b.dataset.del,1);render();}
 });
+
+/* ---------- фото ---------- */
+let PHOTOS=[];
+function safeUrl(u){u=String(u||"").trim();if(!u)return "";if(!/^https?:\/\//i.test(u))u="https://"+u;return u;}
+function compress(file){return new Promise((res,rej)=>{
+  const fr=new FileReader();fr.onerror=rej;fr.onload=()=>{const im=new Image();im.onerror=rej;im.onload=()=>{
+    const M=1600,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement("canvas");
+    c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+    res(c.toDataURL("image/jpeg",.82));};im.src=fr.result;};fr.readAsDataURL(file);});}
+async function addPhotos(files){
+  const imgs=[...files].filter(f=>/^image\//.test(f.type));if(!imgs.length)return;
+  for(const f of imgs){try{PHOTOS.push({src:await compress(f),caption:(f.name&&!/^image\.\w+$/i.test(f.name))?f.name.replace(/\.[^.]+$/,""):""});}catch(e){}}
+  render();
+}
+$("sheet").addEventListener("change",e=>{if(e.target.id==="photoIn"){addPhotos(e.target.files);e.target.value="";}});
+$("sheet").addEventListener("dragover",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.add("over");}});
+$("sheet").addEventListener("dragleave",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d)d.classList.remove("over");});
+$("sheet").addEventListener("drop",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.remove("over");addPhotos(e.dataTransfer.files);}});
+document.addEventListener("paste",e=>{const fs=[...(e.clipboardData&&e.clipboardData.files||[])].filter(f=>/^image\//.test(f.type));if(fs.length){e.preventDefault();addPhotos(fs);}});
 
 /* ---------- чернетка ---------- */
 function saveDraft(){try{localStorage.setItem("tz_draft",JSON.stringify({S,AI,ex:!!window.__example}));}catch(e){}}
@@ -404,6 +450,7 @@ function merge(r,manualHead){
   const m=r?.cons?.m;if(Array.isArray(m))m.slice(0,12).forEach((v,i)=>{if(v!=null&&v!==""){fresh.cons.m[i]=String(v);AI["cons.m."+i]=1;}});
   Object.entries(manualHead).forEach(([k,v])=>{if(v){fresh.head[k]=v;delete AI["head."+k];}});
   fresh.warnings=Array.isArray(r?.warnings)?r.warnings.map(String):[];
+  fresh.links=S.links||[];
   S=fresh;
 }
 function showBanner(){
@@ -536,7 +583,7 @@ $("kpOn").onchange=()=>{$("kpBox").hidden=!$("kpOn").checked;};
 $("in_file").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$("in_tr").value=String(r.result);setSt("Файл «"+f.name+"» завантажено.");};r.readAsText(f);e.target.value="";};
 $("clear").onclick=()=>{
   const b=$("clear");
-  if(b.dataset.confirm){S=blank();AI={};window.__example=false;render();showBanner();b.textContent="Очистити";delete b.dataset.confirm;return;}
+  if(b.dataset.confirm){S=blank();AI={};PHOTOS=[];window.__example=false;render();showBanner();b.textContent="Очистити";delete b.dataset.confirm;return;}
   b.dataset.confirm="1";b.textContent="Точно очистити?";setTimeout(()=>{b.textContent="Очистити";delete b.dataset.confirm;},3000);
 };
 
@@ -570,6 +617,8 @@ function paperHTML(){
   <h5>3. Фото об'єкта з Google Earth</h5><table>${SEC3.map(t=>`<tr><td>${bx(false)}${esc(t)}</td></tr>`).join("")}</table>
   <h5>4. Необхідні фото (засвідчити позначкою)</h5><table>${SEC4.map(t=>`<tr><td>${bx(false)}${esc(t)}</td></tr>`).join("")}</table>
   <h5>5. Схема підключення</h5><div class="scheme"></div>
+  ${S.links.filter(l=>l.url).length?`<h5>Посилання</h5><table>${S.links.filter(l=>l.url).map(l=>`<tr><td class="l">${esc(l.label||"Посилання")}</td><td><a href="${esc(safeUrl(l.url))}">${esc(l.url)}</a></td></tr>`).join("")}</table>`:""}
+  ${PHOTOS.length?`<h5 style="page-break-before:always">Фото</h5><div class="pgrid">${PHOTOS.map(ph=>`<div class="pph"><img src="${ph.src}"><div>${esc(ph.caption)}</div></div>`).join("")}</div>`:""}
   </div>`;
 }
 $("pdf").onclick=async()=>{
@@ -579,7 +628,7 @@ $("pdf").onclick=async()=>{
   try{
     const host=$("pdfhost");host.innerHTML=paperHTML();
     const name=("ТЗ_замір_"+(S.head.client||"клієнт")+"_"+(S.head.address||"")).replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g,"_").replace(/_+$/,"")+".pdf";
-    await html2pdf().set({filename:name,margin:[10,9,12,9],image:{type:"jpeg",quality:.95},html2canvas:{scale:2,backgroundColor:"#ffffff"},jsPDF:{unit:"mm",format:"a4"},pagebreak:{mode:["css","legacy"],avoid:["tr",".keyp"]}}).from(host.firstElementChild).save();
+    await html2pdf().set({filename:name,margin:[10,9,12,9],image:{type:"jpeg",quality:.95},html2canvas:{scale:2,backgroundColor:"#ffffff"},enableLinks:true,jsPDF:{unit:"mm",format:"a4"},pagebreak:{mode:["css","legacy"],avoid:["tr",".keyp",".pph"]}}).from(host.firstElementChild).save();
     host.innerHTML="";st.textContent="PDF збережено.";
   }catch(e){st.className="status err";st.textContent="Не вдалося створити PDF: "+((e&&e.message)||"помилка");}
   $("pdf").disabled=false;
